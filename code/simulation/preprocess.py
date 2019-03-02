@@ -170,15 +170,15 @@ if __name__ == '__main__':
 		prefix + '/camera_one/image_raw/compressed': lambda m: {
 						'cam1': jpeg2np(m.data, (80, 64), True)
 														  },
-		prefix + '/camera_two/image_raw/compressed': lambda m: {
-						'cam2': jpeg2np(m.data, (80, 64), True)
-														  },
-		prefix + '/camera_three/image_raw/compressed': lambda m: {
-						'cam3': jpeg2np(m.data, (80, 64), True)
-														  },
-		prefix + '/camera_down/image_raw/compressed': lambda m: {
-						'target1': np.mean(jpeg2np(m.data))
-														  },
+		# prefix + '/camera_two/image_raw/compressed': lambda m: {
+		# 				'cam2': jpeg2np(m.data, (80, 64), True)
+		# 												  },
+		# prefix + '/camera_three/image_raw/compressed': lambda m: {
+		# 				'cam3': jpeg2np(m.data, (80, 64), True)
+		# 												  },
+		# prefix + '/camera_down/image_raw/compressed': lambda m: {
+		# 				'target1': np.mean(jpeg2np(m.data))
+		# 												  },
 		prefix + '/odom': lambda m: {
 							'pos_x': m.pose.pose.position.x,
 							'pos_y': m.pose.pose.position.y,
