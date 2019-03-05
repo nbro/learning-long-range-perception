@@ -6,3 +6,6 @@ pycrypto
 pandas
 scipy
 rospkg
+tensorflow
+keras
+matplotlib
