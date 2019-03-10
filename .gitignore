@@ -1,3 +1,5 @@
 *.pyc
 *.bag
 *.h5
+code/simulation/trajectories.py
+code/simulation/viz.py
