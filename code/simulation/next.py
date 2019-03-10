@@ -91,7 +91,7 @@ def next_prox(df, coords, target_columns):
 	Returns:
 		The dataframe with the new columns corresponding to the proximity reading for various distances.
 	'''
-	print('extracting target values...')
+	print('next_prox: I will extract the target values...')
 	
 	td_wbegin = pd.Timedelta('-60 s')
 	td_wend = pd.Timedelta('+60 s')

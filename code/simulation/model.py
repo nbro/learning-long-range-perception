@@ -150,7 +150,7 @@ def generator(split_percentage=50.0, filename=None, batch_size=1, augment=True, 
 		yield (inputs, outputs, masks)
 
 	else:
-		group = bag_indices[:int(n_bags * split_percentage / 100.0)]
+		group = bag_indices[:int(np.ceil(n_bags * split_percentage / 100.0))]
 		
 		while True:
 			index = np.random.choice(group)
@@ -188,19 +188,13 @@ def model(lr=0.001, show_summary=False):
 		The defined keras model.
 	"""	
 	input_cam1 = Input(shape=(64, 80, 3), name='input_cam1')
-	input_cam2 = Input(shape=(64, 80, 3), name='input_cam2')
-	input_cam3 = Input(shape=(64, 80, 3), name='input_cam3')
-
-	inputs = [input_cam1, input_cam2, input_cam3]
-
-	conv_inputs = Concatenate(axis=-1)([input_cam1, input_cam2, input_cam3])
 
 	def conv2d(inp, filters):
 		result = Conv2D(filters, (3, 3), padding='same', activation='relu')(inp)
 		result = MaxPooling2D(pool_size=(2, 2))(result)
 		return result
 
-	conv_part = conv2d(conv_inputs, 20)
+	conv_part = conv2d(input_cam1, 20)
 	conv_part = conv2d(conv_part, 12)
 	conv_part = conv2d(conv_part, 10)
 	conv_part = conv2d(conv_part, 8)
@@ -213,7 +207,7 @@ def model(lr=0.001, show_summary=False):
 	for label in target_columns:
 		outputs.append(Dense(len(coords), activation='sigmoid', name='output_' + label)(ff_part))
 
-	model = Model(inputs=inputs, outputs=outputs)
+	model = Model(inputs=input_cam1, outputs=outputs)
 
 	def masked_mse(target, pred):
 		mask = K.cast(K.not_equal(target, -1), K.floatx())

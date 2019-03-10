@@ -90,6 +90,7 @@ def preprocess(path='./', extractors={}, coords=[(0, 0)]):
 		print('saving dataframe...')
 
 		for col in input_cols:
+
 			shape = df[col].iloc[0].shape
 			store = h5f.create_dataset('bag' + str(index) + '/x/' + col,
 						shape=(l,) + shape, maxshape=(None,) + shape,

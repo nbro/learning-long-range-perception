@@ -40,6 +40,7 @@ def train():
 	print()
 
 	cnn = model(learning_rate, show_summary=False)
+
 	gen = generator(split_percentage=split_percentage, filename=filename, batch_size=batch_size,
 					is_testset=False, augment=True)
 

@@ -9,3 +9,4 @@ rospkg
 tensorflow
 keras
 matplotlib
+python-gnupg
