@@ -3,3 +3,6 @@
 *.h5
 code/simulation/trajectories.py
 code/simulation/viz.py
+venv
+.DS_Store
+.idea/
