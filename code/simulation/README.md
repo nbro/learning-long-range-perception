@@ -16,7 +16,7 @@ Then rename the folders that are created after a build of the workspace, so that
 
 ## Required catkin packages
 
-To execute the code under this `simulation` module, you will need the following ROS packages in your workspace
+To execute the code under this `simulation` folder, you will need the following ROS packages in your workspace
 
 1. `pioneer3at_simulation`
 2. `thymioid`
@@ -25,6 +25,8 @@ To execute the code under this `simulation` module, you will need the following 
 5. `thymio_controller`
 
 where `thymio_msgs` and `asebaros_msgs` will be installed from [`ros-aseba`](https://github.com/jeguzzi/ros-aseba). The `thymio_controller` contains the ad-hoc controller for the Pioneer3at robot, which is used to move the robot, while recording the bag files, which will be used to create the dataset for training and testing the neural network.
+
+Issue the following commands inside the `src` folder of your workspace.
 
 ### Install `pioneer3at_simulation`
 
@@ -67,10 +69,12 @@ Now, you should lunch the Gazebo simulator, which will be used to simulate a rob
 After having built the workspace and lunched the simulator, start the controller that will make the robot roam the simple colored environment
 
     rosrun thymio_controller prand_walk.py 
+    
+where `prand_walk.py` is the Python script that contains the controller.
 
 ## Record the bag file
 
-We will record a bag file while the robot roams the environment, which will be used to create a training and test datasets. 
+We will now record a bag file, which will be used to create the training and test datasets, while the robot roams the environment. 
 
 We are only interested in the topics: `/pioneer3at/odom`, `/pioneer3at/camera_one/image_raw/compressed` and `/pioneer3at/camera_down/image_raw/compressed`. So, issue the following command from the terminal
 
@@ -78,11 +82,11 @@ We are only interested in the topics: `/pioneer3at/odom`, `/pioneer3at/camera_on
 
 ## Stop recording
 
-The robot will keep roaming the environment until the controller is stopped. To stop the controller, you just press control + C (and the robot should stop). Similarly, you should also stop the recording of the bag file. After having stopped recording, you should see a `.bag` file under the folder you had started recording. This `.bag` file will be converted to a `.h5` file, which will represent the training and test datasets.
+The robot will keep roaming the environment until the controller is stopped. To stop the controller, you just press <kbd>control + C</kbd> (and the robot should stop). Similarly, you should also stop the recording of the bag file. After having stopped recording, you should see a `.bag` file under the folder you had started recording. This `.bag` file will be converted to a `.h5` file, which will represent the training and test datasets.
 
 ## Create the dataset
 
-To create the training and test datasets (to train a neural network), you will need to install several dependencies first. First, you should have `pip` (for Python 2.7) installed. Then you should install `virtualenv`, create a virtual environment (with Python 2.7) and source it. Then issue the following command to install all the required dependencies both to create the dataset and to train and test the model
+To create the training and test datasets (to train a neural network), you will need to install several dependencies. First, you should have `pip` (for Python 2.7) installed. Then you should install `virtualenv`, create a virtual environment (with Python 2.7) and source it (e.g. `source /venv/bin/activate`, where `venv` is the name of your virtual environment). Then issue the following command to install all the required dependencies both to create the dataset and to train and test the model
 
     pip install -r requirements.txt
 
