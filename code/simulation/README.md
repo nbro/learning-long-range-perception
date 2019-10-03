@@ -78,7 +78,7 @@ We will now record a bag file, which will be used to create the training and tes
 
 We are only interested in the topics: `/pioneer3at/odom`, `/pioneer3at/camera_one/image_raw/compressed` and `/pioneer3at/camera_down/image_raw/compressed`. So, issue the following command from the terminal
 
-    rosbag record /pioneer3at/odom /pioneer3at/camera_one/image_raw/compressed /pioneer3at/camera_down/image_raw/compressed
+    rosbag record --duration=10m /pioneer3at/odom /pioneer3at/camera_one/image_raw/compressed /pioneer3at/camera_down/image_raw/compressed
 
 ## Stop recording
 
