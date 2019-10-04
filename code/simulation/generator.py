@@ -90,7 +90,6 @@ def to_grayscale(x):
     return np.dstack([0.21 * x[:, :, 2] + 0.72 * x[:, :, 1] + 0.07 * x[:, :, 0]] * 3)
 
 
-# TODO: why do you perform with 1/3 probability
 def random_augment(im):
     """See section 4.D of the paper "Learning Long-Range Perception Using Self-Supervision from Short-Range Sensors and
     Odometry"
@@ -99,6 +98,8 @@ def random_augment(im):
 
     :return: a modified version of im.
     """
+    # With probability 1/3, either add Gaussian noise, convert the image to grayscale or do nothing. However, it always
+    # applies a random gradient.
     choice = np.random.randint(0, 3)
 
     if choice == 0:
@@ -107,7 +108,6 @@ def random_augment(im):
         im = to_grayscale(im)
 
     im = (im - im.mean()) / im.std()
-
     im = apply_random_gradient(im)
 
     return im
