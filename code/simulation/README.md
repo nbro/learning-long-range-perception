@@ -100,5 +100,4 @@ However, the Python script might get killed by the system. See https://answers.r
 
 ## Train the model
 
-
-    python train.py -f "<h5-dataset-file-name>.h5"
+    python train.py -d "<h5-dataset-file-name>.h5"

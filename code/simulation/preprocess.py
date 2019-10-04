@@ -187,5 +187,5 @@ if __name__ == '__main__':
 							}
 	}
 
-	res = preprocess(path, extractors, coords)
+	res = preprocess(path, extractors, target_coordinates)
 	print('Finished')

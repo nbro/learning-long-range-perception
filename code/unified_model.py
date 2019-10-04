@@ -61,13 +61,13 @@ def additive_noise(x):
 	return x
 
 def grayscale(x):
-	"""Converts an image to grayscale.
+	"""Converts an image to to_grayscale.
 
 	Args:
 		x: an image represented by a 3d numpy array
 
 	Returns:
-		the grayscale image.
+		the to_grayscale image.
 	"""
 	return np.dstack([0.21 * x[:,:,2] + 0.72 * x[:,:,1] + 0.07 * x[:,:,0]] * 3)
 
