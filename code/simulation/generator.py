@@ -64,7 +64,7 @@ def apply_random_gradient(x):
     return x
 
 
-def add_additive_noise(x):
+def add_gaussian_noise(x):
     """Adds gaussian noise centered on 0 to an image.
 
     Args:
@@ -102,7 +102,7 @@ def random_augment(im):
     choice = np.random.randint(0, 3)
 
     if choice == 0:
-        im = add_additive_noise(im)
+        im = add_gaussian_noise(im)
     elif choice == 1:
         im = to_grayscale(im)
 
