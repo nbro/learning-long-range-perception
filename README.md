@@ -12,13 +12,13 @@ We additionally instantiate the approach on a different simulated scenario with 
 generality of our contribution.
 
 ![Predictions](https://github.com/idsia-robotics/Learning-Long-range-Perception/blob/master/img/predictions.png "Predictions")
-*Prediction of a model trained with the proposed approach applied on a camera mounted on a Mighty Thymio **(a)**, on a TurtleBot **(b)** and on the belt of a person **(c)**.*
+*Prediction of a get_model trained with the proposed approach applied on a camera mounted on a Mighty Thymio **(a)**, on a TurtleBot **(b)** and on the belt of a person **(c)**.*
 
 ![Predictions](https://github.com/idsia-robotics/Learning-Long-range-Perception/blob/master/img/simulation_results.png "Predictions")
 *Simulation setup and results of the proposed approach applied on 3 cameras mounted on a Pioneer 3AT with different rotations.
 **Left & Center-left**: robot setup with cameras' views.
 **Center-right**: number of extracted known labels from 70min of recording.
-**Right**: achieved AUC score of a model trained from 35min of recording.*
+**Right**: achieved AUC score of a get_model trained from 35min of recording.*
 
 The preprint PDF of the article is available [here](https://arxiv.org/abs/1809.07207), while the full paper is avaible [here](https://ieeexplore.ieee.org/document/8624299).
 
@@ -57,8 +57,8 @@ It is stored as an HDF5 file containing a main group per recording called *"bag{
 The entire codebase is avaliable [here](https://github.com/idsia-robotics/Learning-Long-range-Perception/tree/master/code).
 In order to generate the datasets, of which download links are present above, one should launch the script preprocess.py which will create the dataset in hdf5 file format, starting from a collection of ROS bagfiles stored in a given folder.
 
-The script train.py is used to train the model, which is defined in unified_model.py, using a given hdf5 dataset. A list of the available parameters can be seen by launching  `python train.py -h `.
+The script train.py is used to train the get_model, which is defined in unified_model.py, using a given hdf5 dataset. A list of the available parameters can be seen by launching  `python train.py -h `.
 
-The script test.py is used to test the model, which is defined in unified_model.py, using a subset of the hdf5 groups defined in the script. A list of the available parameters can be seen by launching  `python test.py -h `.
+The script test.py is used to test the get_model, which is defined in unified_model.py, using a subset of the hdf5 groups defined in the script. A list of the available parameters can be seen by launching  `python test.py -h `.
 
 The scripts visualize.py and visualize_output.py are respectively used to visualize the real world dataset collected consisting in the camera's view and the ground truth labels, and to visualize the same information plus the selected models' prediction.

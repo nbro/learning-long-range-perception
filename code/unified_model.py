@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"""Function to create the keras model and prepare the data before the training or testing phase."""
+"""Function to create the keras get_model and prepare the data before the training or testing phase."""
 
 import h5py
 import numpy as np
@@ -162,15 +162,15 @@ def generator(group, batch_size, is_testset=False, augment=True, do_flip=True):
 			yield (x, y)
 
 def model(lr=0.001, show_summary=False, old_version=True):
-	"""Creates the keras neural network model.
+	"""Creates the keras neural network get_model.
 
 	Args:
 		lr: the learning rate used for the training.
-		show_summary: a boolean flag that represents if the model has to be printed to console.
-		old_version: a boolean flag that represents if the model should be the old one or the new one (more neurons).
+		show_summary: a boolean flag that represents if the get_model has to be printed to console.
+		old_version: a boolean flag that represents if the get_model should be the old one or the new one (more neurons).
 
 	Returns:
-		The defined keras model.
+		The defined keras get_model.
 	"""
 	model = Sequential()
 

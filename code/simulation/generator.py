@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import h5py
 import numpy as np
 
@@ -110,8 +113,8 @@ def random_augment(im):
     return im
 
 
-def generator(split_percentage=50.0, hdf5_file_name=None, batch_size=1, augment=True, is_testset=False,
-              testset_index=0):
+def get_generator(split_percentage=50.0, hdf5_file_name=None, batch_size=1, augment=True, is_testset=False,
+                  testset_index=0, unknown_label=-1.0):
     """Loads the dataset, preprocess it and generates batches of data.
 
     Args:
@@ -131,29 +134,40 @@ def generator(split_percentage=50.0, hdf5_file_name=None, batch_size=1, augment=
     hdf5_file = h5py.File(hdf5_file_name, 'r')
 
     n_bags = len(hdf5_file.keys())
+
+    # Create an array of integers, one for each of the bag files.
     bag_indices = np.arange(0, n_bags)
 
-    Xkeys = [k for k in hdf5_file['bag0/features'].keys() if k not in ['x', 'y', 'angle']]
-    Ykeys = [k for k in hdf5_file['bag0/targets'].keys()]
+    # Get the name of the features (long-range sensors) and targets (short-range sensors).
+    features = [target for target in hdf5_file['bag0/features'].keys() if target not in ['x', 'y', 'angle']]
+    targets = [target for target in hdf5_file['bag0/targets'].keys()]
 
-    Xs = {i: {k: hdf5_file['bag' + str(i) + '/features/' + k] for k in Xkeys} for i in bag_indices}
-    Ys = {i: {k: hdf5_file['bag' + str(i) + '/targets/' + k] for k in Ykeys} for i in bag_indices}
+    # Create a dictionary from indices (one index associated with each bag file in the HDF5 file) to dictionaries (one
+    # dictionary associated with each bag file), which are maps from the features (or targets) to the corresponding
+    # values of those features (or targets).
+    Xs = {i: {feature: hdf5_file['bag' + str(i) + '/features/' + feature] for feature in features} for i in bag_indices}
+    Ys = {i: {target: hdf5_file['bag' + str(i) + '/targets/' + target] for target in targets} for i in bag_indices}
 
-    lengths = {i: Xs[i][Xkeys[0]].shape[0] for i in bag_indices}
+    lengths = {i: Xs[i][features[0]].shape[0] for i in bag_indices}
+
     counts = {i: 0 for i in bag_indices}
 
+    def binarise_outputs(class_1=1.0, class_2=0.0):
+        for target in targets:
+            out = outputs[target]
+            out[(0 <= out) & (out <= 128)] = class_1
+            out[out > 128] = class_2
+
     if is_testset:
+        # Chose the index of the bag that will be used as test dataset.
         index = n_bags - 1 if testset_index == -1 else testset_index
 
-        inputs = {'input_' + k: Xs[index][k][:] for k in Xkeys}
-        outputs = {'output_' + k: Ys[index][k][:] for k in Ykeys}
-        masks = {'mask_' + k: Ys[index][k][:] != -1.0 for k in Ykeys}
+        inputs = {feature: Xs[index][feature][:] for feature in features}
+        outputs = {target: Ys[index][target][:] for target in targets}
 
-        for k in Ykeys:
-            # Binarise the output, so that we can cast the problem as a binary classification problem.
-            out = outputs['output_' + k]
-            out[(0 <= out) & (out <= 128)] = 1.0
-            out[out > 128] = 0.0
+        masks = {'mask_' + target: Ys[index][target][:] != unknown_label for target in targets}
+
+        binarise_outputs()
 
         yield (inputs, outputs, masks)
 
@@ -161,16 +175,13 @@ def generator(split_percentage=50.0, hdf5_file_name=None, batch_size=1, augment=
         group = bag_indices[:int(np.ceil(n_bags * split_percentage / 100.0))]
 
         while True:
+            # Choose a bag file from the training bag files.
             index = np.random.choice(group)
 
-            inputs = {'input_' + k: Xs[index][k][counts[index]:counts[index] + batch_size] for k in Xkeys}
-            outputs = {'output_' + k: Ys[index][k][counts[index]:counts[index] + batch_size] for k in Ykeys}
-
-            # TODO: masks are not used during training. Why?
-            masks = {'mask_' + k: Ys[index][k][counts[index]:counts[index] + batch_size] != -1.0 for k in Ykeys}
+            inputs = {feature: Xs[index][feature][counts[index]:counts[index] + batch_size] for feature in features}
+            outputs = {target: Ys[index][target][counts[index]:counts[index] + batch_size] for target in targets}
 
             counts[index] += batch_size
-
             if counts[index] + batch_size > lengths[index]:
                 counts[index] = 0
 
@@ -181,15 +192,11 @@ def generator(split_percentage=50.0, hdf5_file_name=None, batch_size=1, augment=
             # center-right sensors. Of course, this is valid in the case of the Thymio robot, but not the Pioneer3AT
             # one.
             if augment:
-                for k in Xkeys:
-                    inp = inputs['input_' + k]
+                for feature in features:
+                    inp = inputs[feature]
                     for i in range(batch_size):
                         inp[i] = random_augment(inp[i])
 
-            # Binarise the output
-            for k in Ykeys:
-                out = outputs['output_' + k]
-                out[(0 <= out) & (out <= 128)] = 1.0
-                out[out > 128] = 0.0
+            binarise_outputs()
 
             yield (inputs, outputs)

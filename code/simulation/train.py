@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Train the neural network model using the given training set."""
 
 import argparse
 import os
@@ -10,12 +9,12 @@ from os import path
 
 import keras
 
-from generator import generator
-from model import model
+from generator import get_generator
+from model import get_model
 
 
 def get_argument_parser():
-    parser = argparse.ArgumentParser(description="It trains a CNN, in a self-supervised fashion, given a HDF5 file "
+    parser = argparse.ArgumentParser(description="It trains a model, in a self-supervised fashion, given a HDF5 file "
                                                  "that contains the readings of a long-range and a short-range sensor, "
                                                  "as well as odometry info.")
 
@@ -42,7 +41,7 @@ def get_argument_parser():
     parser.add_argument('-bs', '--batch-size', type=int, default=64,
                         help='The size of the batches of the training data.')
 
-    parser.add_argument('-lr', '--learning-rate', type=float, default=0.0002,
+    parser.add_argument('-learning_rate', '--learning-rate', type=float, default=0.0002,
                         help='The learning rate used for the training phase')
 
     return parser.parse_args()
@@ -67,13 +66,12 @@ def train():
         os.makedirs(weights_folder_path)
     weights_file_path = path.join(weights_folder_path, "{epoch:02d}-{val_loss:.4f}.cp")
 
-    cnn = model(args.learning_rate, show_summary=False)
+    gen = get_generator(split_percentage=args.split_percentage, hdf5_file_name=args.dataset_file,
+                        batch_size=args.batch_size, is_testset=False, augment=True)
 
-    gen = generator(split_percentage=args.split_percentage, hdf5_file_name=args.dataset_file,
-                    batch_size=args.batch_size,
-                    is_testset=False, augment=True)
+    val_x, val_y, _ = next(get_generator(hdf5_file_name=args.dataset_file, is_testset=True, testset_index=-1))
 
-    val_x, val_y, _ = next(generator(hdf5_file_name=args.dataset_file, is_testset=True, testset_index=-1))
+    cnn = get_model(learning_rate=args.learning_rate, show_summary=False)
 
     history = cnn.fit_generator(generator=gen, steps_per_epoch=args.steps, epochs=args.epochs,
                                 validation_data=(val_x, val_y),

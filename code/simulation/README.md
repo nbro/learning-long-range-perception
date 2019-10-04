@@ -86,7 +86,7 @@ The robot will keep roaming the environment until the controller is stopped. To 
 
 ## Create the dataset
 
-To create the training and test datasets (to train a neural network), you will need to install several dependencies. First, you should have `pip` (for Python 2.7) installed. Then you should install `virtualenv`, create a virtual environment (with Python 2.7) and source it (e.g. `source /venv/bin/activate`, where `venv` is the name of your virtual environment). Then issue the following command to install all the required dependencies both to create the dataset and to train and test the model
+To create the training and test datasets (to train a neural network), you will need to install several dependencies. First, you should have `pip` (for Python 2.7) installed. Then you should install `virtualenv`, create a virtual environment (with Python 2.7) and source it (e.g. `source /venv/bin/activate`, where `venv` is the name of your virtual environment). Then issue the following command to install all the required dependencies both to create the dataset and to train and test the get_model
 
     pip install -r requirements.txt
 
@@ -98,6 +98,6 @@ Then issue the following command
     
 However, the Python script might get killed by the system. See https://answers.ros.org/question/317590/python-is-killed-while-reading-a-bag-file-using-read_messages/. In that case, for example, record a smaller bag file or allow the VM to use more RAM.
 
-## Train the model
+## Train the get_model
 
     python train.py -d "<h5-dataset-file-name>.h5"

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"""Visualize the content of the HDF5 file along with the prediction made by the model."""
+"""Visualize the content of the HDF5 file along with the prediction made by the get_model."""
 
 import os
 import cv2
@@ -23,7 +23,7 @@ def lerp(x, y, a):
 	return (1 - a) * x + a * y
 
 def draw_laser(frame, offset, spacing, height, width, readings, is_pred):
-	"""Draws the model prediction and the sensors onto the image using rectangles
+	"""Draws the get_model prediction and the sensors onto the image using rectangles
 
 	Args:
 		frame: a numpy array containing the raw image
@@ -32,7 +32,7 @@ def draw_laser(frame, offset, spacing, height, width, readings, is_pred):
 		height: the height of the rectangle
 		width: the width of the rectangle
 		readings: a list of readings
-		is_pred: boolean flag representing if readings are taken from the model or from the sensors.
+		is_pred: boolean flag representing if readings are taken from the get_model or from the sensors.
 	"""
 	if is_pred:
 		a = np.array([230, 230, 255])
@@ -49,7 +49,7 @@ def draw_laser(frame, offset, spacing, height, width, readings, is_pred):
 					lerp(a, b, readings[i]).tolist(), cv2.FILLED)
 
 def visualize_output():
-	"""Visualize the content of the HDF5 file along with the prediction made by the model."""
+	"""Visualize the content of the HDF5 file along with the prediction made by the get_model."""
 	bag_index = 0
 
 	x, y, _ = next(generator([bag_index], 32, is_testset=True, augment=False, do_flip=False))
@@ -60,7 +60,7 @@ def visualize_output():
 	print('Generating predictions...')
 	
 	cnn = model(old_version=False)
-	cnn.load_weights('model/model_' + 'icra_many_dist_fixed_step' + '.h5')
+	cnn.load_weights('get_model/model_' + 'icra_many_dist_fixed_step' + '.h5')
 
 	pred = cnn.predict(x)
 

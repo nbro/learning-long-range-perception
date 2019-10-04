@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"""Test the neural network model using the test set."""
+"""Test the neural network get_model using the test set."""
 
 import os
 import tqdm
@@ -13,7 +13,7 @@ from unified_model import *
 from sklearn.metrics import roc_auc_score, roc_curve
 
 def test():
-	"""Test the neural network model with the given weights and outputs metrics."""
+	"""Test the neural network get_model with the given weights and outputs metrics."""
 	
 	distances = list(range(0, 31, 1))
 
@@ -32,15 +32,15 @@ def test():
 
 	cnn = model(show_summary=True, old_version=False)
 
-	files = [file for file in os.listdir('model/') if file[-3:] == '.h5']
+	files = [file for file in os.listdir('get_model/') if file[-3:] == '.h5']
 
 	print('Found models:')
 	for i in range(len(files)):
 		print('\t', i, ': ', files[i])
 
-	model_index = input('Please insert the model index: ')
+	model_index = input('Please insert the get_model index: ')
 
-	cnn.load_weights('model/' + files[int(model_index)])
+	cnn.load_weights('get_model/' + files[int(model_index)])
 
 	rng = np.random.RandomState(13) # 13 lucky number
 
