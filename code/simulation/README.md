@@ -78,11 +78,13 @@ We will now record a bag file, which will be used to create the training and tes
 
 We are only interested in the topics: `/pioneer3at/odom`, `/pioneer3at/camera_one/image_raw/compressed` and `/pioneer3at/camera_down/image_raw/compressed`. So, issue the following command from the terminal
 
-    rosbag record --duration=10m /pioneer3at/odom /pioneer3at/camera_one/image_raw/compressed /pioneer3at/camera_down/image_raw/compressed
+    rosbag record --output-name=<name-of-bag-file.bag> --duration=10m /pioneer3at/odom /pioneer3at/camera_one/image_raw/compressed /pioneer3at/camera_down/image_raw/compressed
 
-## Stop recording
+The recording of the messages will stop after 10 minutes. At this point, you should see a `.bag` file under the folder you had started recording. This `.bag` file will be converted to a `.h5` file, which will represent the training and test datasets.
 
-The robot will keep roaming the environment until the controller is stopped. To stop the controller, you just press <kbd>control + C</kbd> (and the robot should stop). Similarly, you should also stop the recording of the bag file. After having stopped recording, you should see a `.bag` file under the folder you had started recording. This `.bag` file will be converted to a `.h5` file, which will represent the training and test datasets.
+## Stop the controller
+
+To stop the controller, you just press <kbd>control + C</kbd> (and the robot should stop). 
 
 ## Create the dataset
 

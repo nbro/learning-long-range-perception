@@ -1,8 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import random
+from os import path
+
 import h5py
 import numpy as np
+
+
+def normalize(x):
+    """It subtracts the mean of x from x, then divides the result by the standard deviation of x.
+
+    :param x: a 3d numpy array (which e.g. represents an image).
+
+    :return: the normalised version of x.
+    """
+    return (x - x.mean()) / x.std()
 
 
 def flip(x, y):
@@ -24,62 +37,39 @@ def flip(x, y):
     return x, y
 
 
+# TODO: understand this function
 def make_random_gradient(size):
-    """Creates a random gradient
-
-    Args:
-        size: the size of the gradient
-
-    Returns:
-        the random gradient.
-    """
     x, y = np.meshgrid(np.linspace(0, 1, size[1]), np.linspace(0, 1, size[0]))
     grad = x * np.random.uniform(-1, 1) + y * np.random.uniform(-1, 1)
-    grad = (grad - grad.mean()) / grad.std()
+    grad = normalize(grad)
     return grad
 
 
-# TODO: understand what this function does and why we use it.
-def apply_random_gradient(x):
-    """Applies a random gradient to the image
-
-    Args:
-        x: an image represented by a 3d numpy array
-
-    Returns:
-        the image with the added random gradient.
-    """
+# TODO: understand this function
+def apply_random_gradient(x, amount=np.random.uniform(0.05, 0.15), perturb_channels=True):
     grad = make_random_gradient(x.shape)
 
-    for i in range(3):
-        x[:, :, i] = x[:, :, i] * np.random.uniform(0.9, 1.1)
-    x = (x - x.mean()) / x.std()
+    if perturb_channels:
+        for i in range(3):
+            x[:, :, i] = x[:, :, i] * np.random.uniform(0.9, 1.1)
+        x = normalize(x)
 
-    amount = np.random.uniform(0.05, 0.15)
-
     for i in range(3):
-        x[:, :, i] = x[:, :, i] * (1 - amount) + grad * amount
-    x = (x - x.mean()) / x.std()
+        x[:, :, i] = (1 - amount) * x[:, :, i] + amount * grad
+
+    x = normalize(x)
 
     return x
 
 
-def add_gaussian_noise(x):
-    """Adds gaussian noise centered on 0 to an image.
-
-    Args:
-        x: an image represented by a 3d numpy array
-
-    Returns:
-        the image with the added noise.
-    """
-    gauss = np.random.normal(0, 2 * 1e-2, x.shape)  # 2% gaussian noise
+def add_gaussian_noise(x, mu=0., sigma=0.5):
+    gauss = np.random.normal(mu, sigma, x.shape)  # 2% gaussian noise
     x = x + gauss
     return x
 
 
 def to_grayscale(x):
-    """Converts an image to to_grayscale.
+    """Converts an image to grayscale.
 
     Args:
         x: an image represented by a 3d numpy array
@@ -113,90 +103,99 @@ def random_augment(im):
     return im
 
 
-def get_generator(split_percentage=50.0, hdf5_file_name=None, batch_size=1, augment=True, is_testset=False,
-                  testset_index=0, unknown_label=-1.0):
-    """Loads the dataset, preprocess it and generates batches of data.
-
-    Args:
-        split_percentage: a percentage (from 0 to 100) representing the split between training and testing sets.
-        hdf5_file_name: a filename for an hdf5 storage.
-        batch_size: the size of the batch.
-        augment: a boolean flag representing wether to augment the data or not.
-        is_testset: a boolean flag representing wether to generate data for the testing or training.
-        testset_index: the index of the hdf5 storage data to be used as testset.
-
-    Returns:
-        the preprocessed batches.
+def augment_inputs(inputs):
     """
+    See section 4.D of the paper "Learning Long-Range Perception Using Self-Supervision from Short-Range Sensors and
+    Odometry".
+
+    :param inputs: a dictionary from names of features to the corresponding batches of data.
+    """
+    for feature, batch in inputs.iteritems():
+        for i in range(len(batch)):
+            batch[i] = random_augment(batch[i])
+
+
+def binarize_outputs(outputs, class_1=1.0, class_2=0.0, rgb_threshold=128):
+    for target, batch in outputs.iteritems():
+        batch[(0 <= batch) & (batch <= rgb_threshold)] = class_1
+        batch[batch > rgb_threshold] = class_2
+
+
+def get_generator(hdf5_file_name=None, bag_id="bag0", features_group="features", targets_group="targets",
+                  features=["camera_one"], targets=["camera_down"], batch_size=1, split_percentage=50.0, augment=True,
+                  is_testset=False, unknown_label=-1.0):
     if hdf5_file_name is None:
-        raise ValueError("hdf5_file_name cannot be None")
+        raise ValueError("hdf5_file_name cannot be None.")
 
-    hdf5_file = h5py.File(hdf5_file_name, 'r')
+    hdf5_file = h5py.File(hdf5_file_name, "r")
 
-    n_bags = len(hdf5_file.keys())
+    if len(hdf5_file.keys()) == 0:
+        raise ValueError("HDF5 file with name {} is empty.".format(hdf5_file_name))
 
-    # Create an array of integers, one for each of the bag files.
-    bag_indices = np.arange(0, n_bags)
+    if bag_id is None:
+        bag_id = random.choice(hdf5_file.keys())
 
-    # Get the name of the features (long-range sensors) and targets (short-range sensors).
-    features = [target for target in hdf5_file['bag0/features'].keys() if target not in ['x', 'y', 'angle']]
-    targets = [target for target in hdf5_file['bag0/targets'].keys()]
+    if bag_id not in hdf5_file.keys():
+        raise ValueError("{} is not a key in the dataset {}.".format(bag_id, hdf5_file_name))
 
-    # Create a dictionary from indices (one index associated with each bag file in the HDF5 file) to dictionaries (one
-    # dictionary associated with each bag file), which are maps from the features (or targets) to the corresponding
-    # values of those features (or targets).
-    Xs = {i: {feature: hdf5_file['bag' + str(i) + '/features/' + feature] for feature in features} for i in bag_indices}
-    Ys = {i: {target: hdf5_file['bag' + str(i) + '/targets/' + target] for target in targets} for i in bag_indices}
+    for feature in features:
+        if not path.join(bag_id, features_group, feature) in hdf5_file:
+            raise ValueError("feature {} does not exist in the dataset.".format(feature))
 
-    lengths = {i: Xs[i][features[0]].shape[0] for i in bag_indices}
+    for target in targets:
+        if not path.join(bag_id, targets_group, target) in hdf5_file:
+            raise ValueError("target {} does not exist in the dataset.".format(target))
 
-    counts = {i: 0 for i in bag_indices}
+    # The keys to index the features and the targets in the HDF5 file (dictionary).
+    features_keys = [path.join(bag_id, features_group, feature) for feature in features]
+    targets_keys = [path.join(bag_id, targets_group, target) for target in targets]
 
-    def binarise_outputs(class_1=1.0, class_2=0.0):
-        for target in targets:
-            out = outputs[target]
-            out[(0 <= out) & (out <= 128)] = class_1
-            out[out > 128] = class_2
+    n_observations = hdf5_file[features_keys[0]].shape[0]
+
+    for key in features_keys + targets_keys:
+        if hdf5_file[key].shape[0] != n_observations:
+            raise ValueError("not all features and targets have the same number of observations.")
+
+    if split_percentage < 1.0 or split_percentage > 99.0:
+        raise ValueError("split_percentage must be in the range [1.0, 99.0].")
+
+    counter = 0
+
+    # All observations from 0 to n_training_examples are used for training. All other observations are used for testing.
+    n_training_examples = int(np.ceil(n_observations * split_percentage / 100.0))
 
     if is_testset:
-        # Chose the index of the bag that will be used as test dataset.
-        index = n_bags - 1 if testset_index == -1 else testset_index
+        # The validation set.
+        inputs = {feature: hdf5_file[key][n_training_examples:] for feature, key in zip(features, features_keys)}
+        outputs = {target: hdf5_file[key][n_training_examples:] for target, key in zip(targets, targets_keys)}
 
-        inputs = {feature: Xs[index][feature][:] for feature in features}
-        outputs = {target: Ys[index][target][:] for target in targets}
+        # Test the model only with the inputs that have an associated label.
+        masks = {"mask_" + target: hdf5_file[key][n_training_examples:] != unknown_label for target, key in
+                 zip(targets, targets_keys)}
 
-        masks = {'mask_' + target: Ys[index][target][:] != unknown_label for target in targets}
-
-        binarise_outputs()
+        binarize_outputs(outputs)
 
         yield (inputs, outputs, masks)
 
     else:
-        group = bag_indices[:int(np.ceil(n_bags * split_percentage / 100.0))]
-
         while True:
-            # Choose a bag file from the training bag files.
-            index = np.random.choice(group)
+            # The start and end indices of the batch.
+            start = counter
+            end = min(counter + batch_size, n_training_examples)
 
-            inputs = {feature: Xs[index][feature][counts[index]:counts[index] + batch_size] for feature in features}
-            outputs = {target: Ys[index][target][counts[index]:counts[index] + batch_size] for target in targets}
+            # The batch of inputs and outputs.
+            inputs = {feature: hdf5_file[key][start:end] for feature, key in zip(features, features_keys)}
+            outputs = {target: hdf5_file[key][start:end] for target, key in zip(targets, targets_keys)}
 
-            counts[index] += batch_size
-            if counts[index] + batch_size > lengths[index]:
-                counts[index] = 0
+            # Update the counter, so that to get a new batch at the next iteration.
+            if counter + batch_size >= n_training_examples:
+                counter = 0
+            else:
+                counter += batch_size
 
-            # In section 4.D of the paper "Learning Long-Range Perception Using Self-Supervision from Short-Range
-            # Sensors and Odometry", the authors state that they augment the data, so that to increase the size of the
-            # dataset. For example, with probability 0.5 they flip the image and the corresponding target labels are
-            # modified by swapping the outputs of the left and right sensors and the outputs of the center-left and
-            # center-right sensors. Of course, this is valid in the case of the Thymio robot, but not the Pioneer3AT
-            # one.
             if augment:
-                for feature in features:
-                    inp = inputs[feature]
-                    for i in range(batch_size):
-                        inp[i] = random_augment(inp[i])
+                augment_inputs(inputs)
 
-            binarise_outputs()
+            binarize_outputs(outputs)
 
             yield (inputs, outputs)

@@ -24,7 +24,7 @@ def get_argument_parser():
     parser.add_argument('-f', '--models-folder', type=str, default="models",
                         help='The name of the folder that contains the trained models.')
 
-    parser.add_argument('-d', '--dataset-file', type=str, default='dataset.hdf5',
+    parser.add_argument('-d', '--dataset-file', type=str, default='2019-10-08-22-05-41.hdf5',
                         help='The name of the HDF5 file that contains the training and test datasets.')
 
     parser.add_argument('-e', '--epochs', type=int, default=100,
@@ -47,11 +47,7 @@ def get_argument_parser():
     return parser.parse_args()
 
 
-def train():
-    """Train the neural network model, save the weights and show the learning error over time."""
-    args = get_argument_parser()
-    print args
-
+def prepare_environment(args):
     if path.exists(args.model_folder):
         raise ValueError("{} already exists".format(args.model_folder))
 
@@ -64,12 +60,22 @@ def train():
     weights_folder_path = path.join(model_path, "weights")
     if not path.exists(weights_folder_path):
         os.makedirs(weights_folder_path)
-    weights_file_path = path.join(weights_folder_path, "{epoch:02d}-{val_loss:.4f}.cp")
+
+    return path.join(weights_folder_path, "{epoch:02d}-{val_loss:.4f}.cp")
+
+
+def train():
+    """Train the neural network model, save the weights and show the learning error over time."""
+    args = get_argument_parser()
+
+    weights_file_path = prepare_environment(args)
 
     gen = get_generator(split_percentage=args.split_percentage, hdf5_file_name=args.dataset_file,
-                        batch_size=args.batch_size, is_testset=False, augment=True)
+                        batch_size=args.batch_size, is_testset=False, augment=True, features=["camera"],
+                        targets=["target"])
 
-    val_x, val_y, _ = next(get_generator(hdf5_file_name=args.dataset_file, is_testset=True, testset_index=-1))
+    val_x, val_y, _ = next(
+        get_generator(hdf5_file_name=args.dataset_file, is_testset=True, features=["camera"], targets=["target"]))
 
     cnn = get_model(learning_rate=args.learning_rate, show_summary=False)
 
