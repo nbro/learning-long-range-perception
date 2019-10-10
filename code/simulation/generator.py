@@ -122,7 +122,7 @@ def binarize_outputs(outputs, class_1=1.0, class_2=0.0, rgb_threshold=128):
 
 
 def get_generator(hdf5_file_name=None, bag_id="bag0", features_group="features", targets_group="targets",
-                  features=["camera_one"], targets=["camera_down"], batch_size=1, split_percentage=50.0, augment=True,
+                  features=["camera"], targets=["target"], batch_size=1, split_percentage=50.0, augment=True,
                   is_testset=False, unknown_label=-1.0):
     if hdf5_file_name is None:
         raise ValueError("hdf5_file_name cannot be None.")
@@ -169,8 +169,8 @@ def get_generator(hdf5_file_name=None, bag_id="bag0", features_group="features",
         inputs = {feature: hdf5_file[key][n_training_examples:] for feature, key in zip(features, features_keys)}
         outputs = {target: hdf5_file[key][n_training_examples:] for target, key in zip(targets, targets_keys)}
 
-        # Test the model only with the inputs that have an associated label.
-        masks = {"mask_" + target: hdf5_file[key][n_training_examples:] != unknown_label for target, key in
+        # Test the model (calculate the AUC) only with the inputs that have an associated label.
+        masks = {target: hdf5_file[key][n_training_examples:] != unknown_label for target, key in
                  zip(targets, targets_keys)}
 
         binarize_outputs(outputs)

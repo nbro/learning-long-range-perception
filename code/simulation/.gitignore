@@ -3,3 +3,8 @@ venv
 *.hdf5
 models/
 old_generator.py
+preprocess.py
+next.py
+viz.py
+test.py
+trajectories.py

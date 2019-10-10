@@ -10,3 +10,5 @@ tensorflow
 keras
 matplotlib
 python-gnupg
+scikit-learn
+seaborn
