@@ -93,3 +93,11 @@ To create the training and test datasets (to train a neural network), you can us
 ## Train the model
 
     python train.py -d "<h5-dataset-file-name>.h5"
+    
+## Test the model
+
+To test the model, you can issue
+
+    python test.py --save-auc
+    
+which will display both the loss of the test dataset, as well as a plot of the AUC score for each target coordinate.

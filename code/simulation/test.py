@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import time
 from os import path
 
 import matplotlib.pyplot as plt
@@ -19,20 +20,31 @@ from settings import target_coordinates
 def get_argument_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-m', '--model-folder', type=str, default="models/2019-10-10-17-55-32/weights",
+    parser.add_argument('-m', '--model-folder', type=str, default="models/2019-10-10-22-21-35/weights",
                         help='The name of the folder that contains the trained model.')
 
     parser.add_argument('-d', '--dataset-file', type=str, default='datasets/2019-10-08-22-05-41.hdf5',
                         help='The name of the HDF5 file that contains the training and test datasets.')
 
-    parser.add_argument('-r', '--rounds', type=int, default=1, choices=range(1, 201),
-                        help='The number of rounds')
+    parser.add_argument('-r', '--rounds', type=int, default=10, choices=range(1, 201),
+                        help='The number of rounds to calculate the AUC.')
 
-    parser.add_argument('--features', nargs='+', type=str, default=["camera"], metavar="t",
+    parser.add_argument('-f', '--features', nargs='+', type=str, default=["camera"],
                         help="The name of the features in the HDF5 file.")
 
-    parser.add_argument('--targets', nargs='+', type=str, default=["target"], metavar="t",
+    parser.add_argument('-t', '--targets', nargs='+', type=str, default=["target"],
                         help="The name of the targets in the HDF5 file.")
+
+    parser.add_argument('-i', '--interactive', action='store_true',
+                        help="If this flag is passed, the user will be interactively asked to choose the file "
+                             "containing the weights, else the last file (in terms of file name) in the folder "
+                             "containing the trained model is used.")
+
+    parser.add_argument('-s', '--save-auc', action='store_true',
+                        help="If this flag is passed, the plot(s) containing the AUC scores are stored to a file.")
+
+    parser.add_argument('-af', '--auc-folder', type=str, default="aucs",
+                        help='The name of the folder where to save the AUC heat map.')
 
     return parser.parse_args()
 
@@ -49,13 +61,15 @@ def test():
 
     cnn = get_model()
 
-    print 'The following HDF5 files containing weights were found: '
-    for j in range(len(files_names)):
-        print files_names[j], "(index = {})".format(j)
+    hdf5_index = len(files_names) - 1
+    if args.interactive:
+        print 'The following HDF5 files containing weights were found: '
+        for j in range(len(files_names)):
+            print files_names[j], "(index = {})".format(j)
 
-    hdf5_index = int(raw_input('Please, enter the index of the desired HDF5 file: '))
-    if hdf5_index < 0 or hdf5_index >= len(files_names):
-        hdf5_index = len(files_names) - 1
+        hdf5_index = int(raw_input('Please, enter the index of the desired HDF5 file: '))
+        while hdf5_index < 0 or hdf5_index >= len(files_names):
+            hdf5_index = int(raw_input('Please, enter the index of the desired HDF5 file: '))
 
     cnn.load_weights(path.join(args.model_folder, files_names[hdf5_index]))
 
@@ -68,14 +82,14 @@ def test():
     loss = cnn.evaluate(test_x, test_y, verbose=1)
     print 'Test loss:', loss
 
-    pred = cnn.predict(test_x)
+    prediction = cnn.predict(test_x)
 
     # A dictionary from targets to their predictions.
-    if isinstance(pred, list):
+    if isinstance(prediction, list):
         # If there are multiple targets, pred is a list of prediction, one for each target.
-        prediction = {target: p for target, p in zip(args.targets, pred)}
+        pred_y = {target: p for target, p in zip(args.targets, prediction)}
     else:
-        prediction = {target: pred for target in args.targets}
+        pred_y = {target: prediction for target in args.targets}
 
     # A list of arrays of shape (len(args.targets), len(target_coordinates)), one for each round.
     auc_array = []
@@ -88,10 +102,11 @@ def test():
         # observations (or examples) in the test dataset.
         aucs = np.zeros((len(args.targets), len(target_coordinates)))
 
-        for i, target in enumerate(args.targets):
-            for j, target_coordinate in enumerate(target_coordinates):
+        for t, target in enumerate(args.targets):
+            for c, target_coordinate in enumerate(target_coordinates):
 
-                mask = masks[target]
+                # Select the mask for the current target and coordinate, for all observations.
+                mask = masks[target][:, c]
 
                 if mask.dtype != np.dtype('bool'):
                     raise TypeError("mask is not a boolean array.")
@@ -101,33 +116,43 @@ def test():
                     auc = 0.5
                 else:
                     try:
-                        assert test_y[target].shape == mask.shape
-                        auc = roc_auc_score(test_y[target][mask].tolist(), prediction[target][mask].tolist())
+                        # Compute the ROC-AUC score for coordinate c with all observations.
+                        auc = roc_auc_score(test_y[target][mask, c].tolist(), pred_y[target][mask, c].tolist())
                     except ValueError:
                         auc = 0.5
 
-                aucs[i][j] = auc
+                aucs[t][c] = auc
 
         auc_array.append(aucs)
 
     mean_auc = np.mean(auc_array, axis=0)
 
     # One AUC map for each target.
-    auc_maps = np.zeros((len(args.targets), 17, 17))
+    n = 17
+    assert n * n == len(target_coordinates)
+    auc_maps = np.zeros((len(args.targets), n, n))
 
     for t, target in enumerate(args.targets):
-        for k in range(len(target_coordinates)):
-            i = 16 - (k // 17)
-            j = k % 17
-            auc_maps[t, i, j] = mean_auc[t, k]
+        for c in range(len(target_coordinates)):
+            x = 16 - (c // 17)
+            y = c % 17
+            auc_maps[t, x, y] = mean_auc[t, c]
 
     # Show the AUC maps.
     for target, auc_map in zip(args.targets, auc_maps):
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5, 4))
-        sns.heatmap(auc_map * 100, cmap='gray', annot=True, vmin=50, vmax=100)
-        plt.setp(ax.get_xticklabels(), visible=False)
-        plt.setp(ax.get_yticklabels(), visible=False)
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 6))
+        auc_map = auc_map * 100
+        sns.heatmap(auc_map.astype(int), cmap='gray', annot=True, vmin=50, vmax=100, fmt="d")
+        sns.set(font_scale=0.9)
+        ax.set_xticks([])
+        ax.set_yticks([])
         plt.title('Average ROC-AUC score for target="{}"'.format(target))
+
+        if args.save_auc:
+            if not path.exists(args.auc_folder):
+                os.makedirs(args.auc_folder)
+            file_path = path.join(args.auc_folder, time.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
+            plt.savefig(file_path)
 
     plt.show()
 

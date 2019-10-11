@@ -27,16 +27,22 @@ def get_argument_parser():
     parser.add_argument('-d', '--dataset-file', type=str, default='datasets/2019-10-08-22-05-41.hdf5',
                         help='The name of the HDF5 file that contains the training and test datasets.')
 
-    parser.add_argument('-e', '--epochs', type=int, default=1,
-                        help='The number of epochs of the training phase.')
-
-    parser.add_argument('-s', '--steps', type=int, default=500,
-                        help='The number of training steps per epoch.')
-
     # See section V.C of the paper "Learning Long-Range Perception Using Self-Supervision from Short-Range Sensors and
     # Odometry" (https://arxiv.org/pdf/1809.07207.pdf).
     parser.add_argument('-sp', '--split-percentage', type=float, default=50.0, choices=range(0, 101),
                         help='The train/test split percentage, which is a number in the range [0, 100].')
+
+    parser.add_argument('--features', nargs='+', type=str, default=["camera"], metavar="t",
+                        help="The name of the features in the HDF5 file.")
+
+    parser.add_argument('--targets', nargs='+', type=str, default=["target"], metavar="t",
+                        help="The name of the targets in the HDF5 file.")
+
+    parser.add_argument('-e', '--epochs', type=int, default=3,
+                        help='The number of epochs of the training phase.')
+
+    parser.add_argument('-s', '--steps', type=int, default=500,
+                        help='The number of training steps per epoch.')
 
     parser.add_argument('-bs', '--batch-size', type=int, default=64,
                         help='The size of the batches of the training data.')
