@@ -121,9 +121,9 @@ def binarize_outputs(outputs, class_1=1.0, class_2=0.0, rgb_threshold=128):
         batch[batch > rgb_threshold] = class_2
 
 
-def get_generator(hdf5_file_name=None, bag_id="bag0", features_group="features", targets_group="targets",
-                  features=["camera"], targets=["target"], batch_size=1, split_percentage=50.0, augment=True,
-                  is_testset=False, unknown_label=-1.0):
+def get_generator(hdf5_file_name, bag_id="bag0", features_group="features", targets_group="targets",
+                  features=["camera"], targets=["target"], batch_size=1, usage_percentage=100.0, split_percentage=50.0,
+                  augment=True, is_testset=False, unknown_label=-1.0):
     if hdf5_file_name is None:
         raise ValueError("hdf5_file_name cannot be None.")
 
@@ -150,28 +150,48 @@ def get_generator(hdf5_file_name=None, bag_id="bag0", features_group="features",
     features_keys = [path.join(bag_id, features_group, feature) for feature in features]
     targets_keys = [path.join(bag_id, targets_group, target) for target in targets]
 
-    n_observations = hdf5_file[features_keys[0]].shape[0]
-
     for key in features_keys + targets_keys:
-        if hdf5_file[key].shape[0] != n_observations:
+        if hdf5_file[key].shape[0] != hdf5_file[features_keys[0]].shape[0]:
             raise ValueError("not all features and targets have the same number of observations.")
 
-    if split_percentage < 1.0 or split_percentage > 99.0:
-        raise ValueError("split_percentage must be in the range [1.0, 99.0].")
+    # Make sure that these are percentages.
+    if usage_percentage < 0.0 or usage_percentage > 100.0:
+        raise ValueError("usage_percentage must be in the range [0.0, 100.0].")
 
-    counter = 0
+    if split_percentage < 0.0 or split_percentage > 100.0:
+        raise ValueError("split_percentage must be in the range [0.0, 100.0].")
+
+    if hdf5_file[features_keys[0]].shape[0] < 2:
+        raise ValueError("there should be at least 2 observations (one for training and one for testing).")
+
+    n_observations = int(np.ceil(hdf5_file[features_keys[0]].shape[0] * usage_percentage / 100.0))
+
+    if n_observations < 2:
+        raise ValueError("usage_percentage is too small given that it produces a number of observations less than 2.")
 
     # All observations from 0 to n_training_examples are used for training. All other observations are used for testing.
     n_training_examples = int(np.ceil(n_observations * split_percentage / 100.0))
 
+    if n_training_examples <= 0.0 or n_training_examples >= n_observations:
+        raise ValueError("split_percentage produces either no training or test examples.")
+
+    counter = 0
+
+    # TODO: allow iterating in batches also from the test dataset.
+    # TODO: separate the validation from the test datasets.
     if is_testset:
         # The validation set.
-        inputs = {feature: hdf5_file[key][n_training_examples:] for feature, key in zip(features, features_keys)}
-        outputs = {target: hdf5_file[key][n_training_examples:] for target, key in zip(targets, targets_keys)}
+        inputs = {feature: hdf5_file[key][n_training_examples:n_observations] for feature, key in
+                  zip(features, features_keys)}
+        outputs = {target: hdf5_file[key][n_training_examples:n_observations] for target, key in
+                   zip(targets, targets_keys)}
 
         # Test the model (calculate the AUC) only with the inputs that have an associated label.
-        masks = {target: hdf5_file[key][n_training_examples:] != unknown_label for target, key in
+        masks = {target: hdf5_file[key][n_training_examples:n_observations] != unknown_label for target, key in
                  zip(targets, targets_keys)}
+
+        for (k1, v1), (k2, v2), (k3, v3) in zip(inputs.iteritems(), outputs.iteritems(), masks.iteritems()):
+            assert (len(v1) == len(v2) == len(v3)) and len(v1) >= 1
 
         binarize_outputs(outputs)
 
@@ -186,6 +206,9 @@ def get_generator(hdf5_file_name=None, bag_id="bag0", features_group="features",
             # The batch of inputs and outputs.
             inputs = {feature: hdf5_file[key][start:end] for feature, key in zip(features, features_keys)}
             outputs = {target: hdf5_file[key][start:end] for target, key in zip(targets, targets_keys)}
+
+            for (k1, v1), (k2, v2) in zip(inputs.iteritems(), outputs.iteritems()):
+                assert (len(v1) == len(v2)) and len(v1) >= 1
 
             # Update the counter, so that to get a new batch at the next iteration.
             if counter + batch_size >= n_training_examples:

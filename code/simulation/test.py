@@ -15,18 +15,21 @@ from sklearn.metrics import roc_auc_score
 from generator import get_generator
 from model import get_model
 from settings import target_coordinates
+from utils import percent
+
+DEFAULT_MODEL = "2019-10-11-19-00-21"
 
 
 def get_argument_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-m', '--model-folder', type=str, default="models/2019-10-10-22-21-35/weights",
+    parser.add_argument('-m', '--model-folder', type=str, default="models/{}/weights".format(DEFAULT_MODEL),
                         help='The name of the folder that contains the trained model.')
 
     parser.add_argument('-d', '--dataset-file', type=str, default='datasets/2019-10-08-22-05-41.hdf5',
                         help='The name of the HDF5 file that contains the training and test datasets.')
 
-    parser.add_argument('-r', '--rounds', type=int, default=10, choices=range(1, 201),
+    parser.add_argument('-r', '--rounds', type=int, default=10, choices=range(1, 1001), metavar="[1, 1000]",
                         help='The number of rounds to calculate the AUC.')
 
     parser.add_argument('-f', '--features', nargs='+', type=str, default=["camera"],
@@ -34,6 +37,13 @@ def get_argument_parser():
 
     parser.add_argument('-t', '--targets', nargs='+', type=str, default=["target"],
                         help="The name of the targets in the HDF5 file.")
+
+    parser.add_argument('-u', '--usage-percentage', type=percent, default=100.0, metavar="[0, 100]",
+                        help='The percentage of the dataset to use for a given experiment, which is a number in the '
+                             'range [0, 100].')
+
+    parser.add_argument('-sp', '--split-percentage', type=percent, default=50.0, metavar="[0, 100]",
+                        help='The train/test split percentage, which is a number in the range [0, 100].')
 
     parser.add_argument('-i', '--interactive', action='store_true',
                         help="If this flag is passed, the user will be interactively asked to choose the file "
@@ -43,7 +53,7 @@ def get_argument_parser():
     parser.add_argument('-s', '--save-auc', action='store_true',
                         help="If this flag is passed, the plot(s) containing the AUC scores are stored to a file.")
 
-    parser.add_argument('-af', '--auc-folder', type=str, default="aucs",
+    parser.add_argument('-af', '--auc-folder', type=str, default="models/{}/aucs".format(DEFAULT_MODEL),
                         help='The name of the folder where to save the AUC heat map.')
 
     return parser.parse_args()
@@ -77,6 +87,8 @@ def test():
     # in the positions where no label is known. masks is a (N, len(target_coordinates)) array, where N is the number of
     # observations or the size of the test dataset.
     test_x, test_y, masks = next(get_generator(hdf5_file_name=args.dataset_file, is_testset=True,
+                                               usage_percentage=args.usage_percentage,
+                                               split_percentage=args.split_percentage,
                                                features=args.features, targets=args.targets))
 
     loss = cnn.evaluate(test_x, test_y, verbose=1)
