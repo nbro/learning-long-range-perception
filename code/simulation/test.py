@@ -17,14 +17,14 @@ from model import get_model
 from settings import target_coordinates
 from utils import percent
 
-DEFAULT_MODEL = "2019-10-11-19-00-21"
+DEFAULT_MODEL = "2019-10-12-15-46-25/10"
 
 
-def get_argument_parser():
+def get_arguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-m', '--model-folder', type=str, default="models/{}/weights".format(DEFAULT_MODEL),
-                        help='The name of the folder that contains the trained model.')
+    parser.add_argument('-w', '--weights-folder', type=str, default="models/{}/weights".format(DEFAULT_MODEL),
+                        help='The name of the folder that contains the weights of the trained model.')
 
     parser.add_argument('-d', '--dataset-file', type=str, default='datasets/2019-10-08-22-05-41.hdf5',
                         help='The name of the HDF5 file that contains the training and test datasets.')
@@ -53,61 +53,19 @@ def get_argument_parser():
     parser.add_argument('-s', '--save-auc', action='store_true',
                         help="If this flag is passed, the plot(s) containing the AUC scores are stored to a file.")
 
-    parser.add_argument('-af', '--auc-folder', type=str, default="models/{}/aucs".format(DEFAULT_MODEL),
+    parser.add_argument('-af', '--aucs-folder', type=str, default="models/{}/aucs".format(DEFAULT_MODEL),
                         help='The name of the folder where to save the AUC heat map.')
 
     return parser.parse_args()
 
 
-def test():
-    args = get_argument_parser()
-
-    if not path.exists(args.model_folder):
-        raise ValueError("{} does not exist.".format(args.model_folder))
-
-    files_names = [file_name for file_name in os.listdir(args.model_folder) if file_name.endswith(".hdf5")]
-    if len(files_names) == 0:
-        raise ValueError("folder {} does not contain any .hdf5 file.".format(args.model_folder))
-
-    cnn = get_model()
-
-    hdf5_index = len(files_names) - 1
-    if args.interactive:
-        print 'The following HDF5 files containing weights were found: '
-        for j in range(len(files_names)):
-            print files_names[j], "(index = {})".format(j)
-
-        hdf5_index = int(raw_input('Please, enter the index of the desired HDF5 file: '))
-        while hdf5_index < 0 or hdf5_index >= len(files_names):
-            hdf5_index = int(raw_input('Please, enter the index of the desired HDF5 file: '))
-
-    cnn.load_weights(path.join(args.model_folder, files_names[hdf5_index]))
-
-    # mask is an array of the same shape as text_y, but with True in the position where there is a known label and False
-    # in the positions where no label is known. masks is a (N, len(target_coordinates)) array, where N is the number of
-    # observations or the size of the test dataset.
-    test_x, test_y, masks = next(get_generator(hdf5_file_name=args.dataset_file, is_testset=True,
-                                               usage_percentage=args.usage_percentage,
-                                               split_percentage=args.split_percentage,
-                                               features=args.features, targets=args.targets))
-
-    loss = cnn.evaluate(test_x, test_y, verbose=1)
-    print 'Test loss:', loss
-
-    prediction = cnn.predict(test_x)
-
-    # A dictionary from targets to their predictions.
-    if isinstance(prediction, list):
-        # If there are multiple targets, pred is a list of prediction, one for each target.
-        pred_y = {target: p for target, p in zip(args.targets, prediction)}
-    else:
-        pred_y = {target: prediction for target in args.targets}
-
+def calculate_mean_auc(args, test_y, pred_y, masks):
     # A list of arrays of shape (len(args.targets), len(target_coordinates)), one for each round.
     auc_array = []
 
     print('Number of rounds = %d' % args.rounds)
 
+    # Calculate the AUC for args.rounds time, then average the result.
     for _ in tqdm.tqdm(range(args.rounds)):
 
         # Calculate the AUC for each target coordinate and target combination, each time with the values of all
@@ -137,13 +95,16 @@ def test():
 
         auc_array.append(aucs)
 
-    mean_auc = np.mean(auc_array, axis=0)
+    return np.mean(auc_array, axis=0)
 
+
+def plot_auc_map(args, mean_auc):
     # One AUC map for each target.
     n = 17
     assert n * n == len(target_coordinates)
     auc_maps = np.zeros((len(args.targets), n, n))
 
+    # Create the grid of target coordinates with the associated AUC value.
     for t, target in enumerate(args.targets):
         for c in range(len(target_coordinates)):
             x = 16 - (c // 17)
@@ -161,13 +122,99 @@ def test():
         plt.title('Average ROC-AUC score for target="{}"'.format(target))
 
         if args.save_auc:
-            if not path.exists(args.auc_folder):
-                os.makedirs(args.auc_folder)
-            file_path = path.join(args.auc_folder, time.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
+            if not path.exists(args.aucs_folder):
+                os.makedirs(args.aucs_folder)
+            file_path = path.join(args.aucs_folder, time.strftime("%Y-%m-%d-%H-%M-%S") + ".png")
             plt.savefig(file_path)
 
     plt.show()
 
 
+def get_weights_file_name(args):
+    if not path.exists(args.weights_folder):
+        raise ValueError("{} does not exist.".format(args.weights_folder))
+
+    files_names = [file_name for file_name in os.listdir(args.weights_folder) if file_name.endswith(".hdf5")]
+    if len(files_names) == 0:
+        raise ValueError("folder {} does not contain any .hdf5 file.".format(args.weights_folder))
+
+    hdf5_index = len(files_names) - 1
+    if args.interactive:
+        print 'The following HDF5 files containing weights were found: '
+        for j in range(len(files_names)):
+            print files_names[j], "(index = {})".format(j)
+
+        hdf5_index = int(raw_input('Please, enter the index of the desired HDF5 file: '))
+        while hdf5_index < 0 or hdf5_index >= len(files_names):
+            hdf5_index = int(raw_input('Please, enter the index of the desired HDF5 file: '))
+
+    return files_names[hdf5_index]
+
+
+def test(args=None, show_auc_map=True):
+    if args is None:
+        args = get_arguments()
+
+    weights_file_name = get_weights_file_name(args)
+
+    cnn = get_model()
+    cnn.load_weights(path.join(args.weights_folder, weights_file_name))
+
+    # masks is an array of the same shape as text_y, but with True in the position where there is a known label and
+    # False in the positions where no label is known. masks is a (N, len(target_coordinates)) array, where N is the
+    # number of observations or the size of the test dataset.
+    test_x, test_y, masks = next(get_generator(hdf5_file_name=args.dataset_file, is_testset=True,
+                                               usage_percentage=args.usage_percentage,
+                                               split_percentage=args.split_percentage,
+                                               features=args.features, targets=args.targets))
+
+    loss = cnn.evaluate(test_x, test_y, verbose=1)
+    print 'Test loss:', loss
+
+    prediction = cnn.predict(test_x)
+
+    # A dictionary from targets to their predictions.
+    if isinstance(prediction, list):
+        # If there are multiple targets, pred is a list of prediction, one for each target.
+        pred_y = {target: p for target, p in zip(args.targets, prediction)}
+    else:
+        pred_y = {target: prediction for target in args.targets}
+
+    mean_auc = calculate_mean_auc(args, test_y, pred_y, masks)
+
+    if show_auc_map:
+        plot_auc_map(args, mean_auc)
+
+    return loss, prediction, mean_auc
+
+
+def incrementally_test():
+    args = get_arguments()
+
+    models_folder = "models/incremental/2019-10-12-02-57-16"
+
+    losses = []
+    mean_aucs = []
+    predictions = []
+
+    for name in sorted(os.listdir(models_folder)):
+
+        model_folder = path.join(models_folder, name)
+
+        if path.isdir(models_folder):
+            weights_folder = path.join(model_folder, "weights")
+            aucs_folder = path.join(model_folder, "aucs")
+
+            args.weights_folder = weights_folder
+            args.aucs_folder = aucs_folder
+
+            loss, prediction, mean_auc = test(args)
+
+            losses.append(loss)
+            predictions.append(prediction)
+            mean_aucs.append(mean_auc)
+
+
 if __name__ == '__main__':
     test()
+    # incrementally_test()

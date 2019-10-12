@@ -17,7 +17,7 @@ from model import get_model
 from utils import percent
 
 
-def get_argument_parser():
+def get_arguments():
     parser = argparse.ArgumentParser(description="It trains a model, in a self-supervised fashion, given a HDF5 file "
                                                  "that contains the readings of a long-range and a short-range sensor, "
                                                  "as well as odometry info.")
@@ -44,10 +44,10 @@ def get_argument_parser():
     parser.add_argument('-t', '--targets', nargs='+', type=str, default=["target"], metavar="t",
                         help="The name of the targets in the HDF5 file.")
 
-    parser.add_argument('-e', '--epochs', type=int, default=100,
+    parser.add_argument('-e', '--epochs', type=int, default=2,
                         help='The number of epochs of the training phase.')
 
-    parser.add_argument('-s', '--steps', type=int, default=1000,
+    parser.add_argument('-s', '--steps', type=int, default=1,
                         help='The number of training steps per epoch.')
 
     parser.add_argument('-bs', '--batch-size', type=int, default=64,
@@ -59,7 +59,7 @@ def get_argument_parser():
     return parser.parse_args()
 
 
-def plot_history(history_df, save_plot=True, loss_folder_path=None):
+def plot_loss(history_df, show_plot=False, save_plot=True, loss_folder_path=None):
     if save_plot:
         if not isinstance(loss_folder_path, str):
             raise TypeError("loss_folder_path should be a string.")
@@ -73,10 +73,11 @@ def plot_history(history_df, save_plot=True, loss_folder_path=None):
     if save_plot:
         plt.savefig(path.join(loss_folder_path, time.strftime("%Y-%m-%d-%H-%M-%S") + ".png"))
 
-    plt.show()
+    if show_plot:
+        plt.show()
 
 
-def prepare_environment(args):
+def create_model_folders(args):
     if path.exists(args.model_folder):
         raise ValueError("{} already exists".format(args.model_folder))
 
@@ -101,11 +102,11 @@ def prepare_environment(args):
     return weights_file_path, loss_folder_path, history_file_path
 
 
-def train():
-    """Train the neural network model, save the weights and show the learning error over time."""
-    args = get_argument_parser()
+def train(args):
+    if args is None:
+        args = get_arguments()
 
-    weights_file_path, loss_folder_path, history_file_path = prepare_environment(args)
+    weights_file_path, loss_folder_path, history_file_path = create_model_folders(args)
 
     gen = get_generator(hdf5_file_name=args.dataset_file, features=args.features, targets=args.targets,
                         usage_percentage=args.usage_percentage, split_percentage=args.split_percentage,
@@ -128,8 +129,19 @@ def train():
 
     history_df = pd.DataFrame(history.history, columns=history.history.keys())
     history_df.to_csv(history_file_path)
-    plot_history(history_df, save_plot=True, loss_folder_path=loss_folder_path)
+    plot_loss(history_df, save_plot=True, loss_folder_path=loss_folder_path)
+
+
+def incrementally_train(usage_percentages=range(10, 101, 10)):
+    models_folder = time.strftime("%Y-%m-%d-%H-%M-%S")
+    args = get_arguments()
+    for usage_percentage in usage_percentages:
+        # Train a new model with the current usage_percentage.
+        args.usage_percentage = usage_percentage
+        args.model_folder = "{}/{}".format(models_folder, usage_percentage)
+        train(args)
 
 
 if __name__ == '__main__':
-    train()
+    # train()
+    incrementally_train()
