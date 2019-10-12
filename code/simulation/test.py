@@ -191,7 +191,7 @@ def test(args=None, show_auc_map=True):
 def incrementally_test():
     args = get_arguments()
 
-    models_folder = "models/incremental/2019-10-12-02-57-16"
+    models_folder = "models/2019-10-12-15-46-25"
 
     losses = []
     mean_aucs = []
@@ -216,5 +216,5 @@ def incrementally_test():
 
 
 if __name__ == '__main__':
-    test()
-    # incrementally_test()
+    # test()
+    incrementally_test()
